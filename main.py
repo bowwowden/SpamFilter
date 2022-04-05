@@ -31,13 +31,13 @@ def create_model(path):
 
     f = open(path, 'r')
 
-    ## You shouldn't visit a token more than once
+
     for l in f.readlines():
         tokens = preprocess(l)
         if len(tokens) == 0:
             continue
+
         for token in tokens:
-            # FIXME Update the counts for unigrams and bigrams
 
             for c in token:
                 # including $
@@ -55,13 +55,13 @@ def create_model(path):
                     bigrams[left][right] = 1
                 else:
                     bigrams[left][right] += 1
-                # always
+
                 left = right
 
-    # FIXME After calculating the counts, calculate the smoothed log probabilities
-    # add-one
+    # Smooth the bigrams for what doesn't appear
     for c in unigrams:
-        # loop all possible bigrams
+
+        # loop
         for k in unigrams:
             # if bigram never seen, equal 1
             if not k in bigrams[c]:
@@ -70,7 +70,7 @@ def create_model(path):
             else:
                 bigrams[c][k] += 1
 
-    # create the probabilities
+    # Create the probability models
     for c in unigrams:
 
         for k in unigrams:
@@ -78,7 +78,7 @@ def create_model(path):
             number_of_x = unigrams[c]
 
             # bigram probability
-            bigrams[c][k] = int(math.log((number_of_xy + 1) / (number_of_x + len(unigrams))))
+            bigrams[c][k] = (number_of_xy + 1) / (number_of_x + len(unigrams))
 
     # return the actual model: bigram (smoothed log) probabilities and unigram counts (the latter to smooth
     # unseen bigrams in predict(...)
@@ -93,8 +93,9 @@ def predict(file, model_en, model_es):
     bigrams_es = model_es[0]
     unigrams_es = model_es[1]
 
-    es_probability = 0
-    en_probability = 0
+    spam = 0
+    non_spam = 0
+
     # going through the file, with each of the probabilities...
     f = open(file, 'r')
     for l in f.readlines():
@@ -109,25 +110,28 @@ def predict(file, model_en, model_es):
                 # left is one before, right is next
                 # adding sequences of log probabilites, doing the negative because
                 # multiplying negative logs is impossible
-                es_probability += bigrams_es[left][right]
-                en_probability += bigrams_en[left][right]
+                spam += bigrams_es[left][right]
+                non_spam += bigrams_en[left][right]
                 left = right
 
-    if en_probability >= es_probability:
+    if non_spam >= spam:
+        print("non_spam probability: " + str((non_spam)))
+        print("spam probability: " + str(spam))
         return 'Non-Spam'
     else:
+        print("non_spam probability: " + str(non_spam))
+        print("spam probability: " + str(spam))
         return 'Spam'
 
-    # prediction should be either 'English' or 'Spanish'
 
 
-def main(en_tr, es_tr, folder_te):
+def main(non_spam, spam, folder_te):
 
     # STEP 1: create a model for non spam
-    model_non_spam = create_model(en_tr)
+    model_non_spam = create_model(non_spam)
 
     # STEP 2: create a model for spam
-    model_spam = create_model(es_tr)
+    model_spam = create_model(spam)
 
     # STEP 3: loop through all the files in folder_te and print prediction
     folder = os.path.join(folder_te, "non-spam")
@@ -138,6 +142,7 @@ def main(en_tr, es_tr, folder_te):
 
     folder = os.path.join(folder_te, "spam")
     print("\nPrediction for Spam documents in test:")
+
     for f in os.listdir(folder):
         f_path = os.path.join(folder, f)
         print(f"{f}\t{predict(f_path, model_non_spam, model_spam)}")
